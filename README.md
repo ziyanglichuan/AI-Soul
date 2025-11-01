@@ -89,7 +89,3 @@
     ```bash
     streamlit run web_demo.py
     ```
-
-## 协议 (License)
-
-MIT License
