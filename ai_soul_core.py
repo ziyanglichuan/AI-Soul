@@ -88,16 +88,11 @@ class AI_Soul:
             print(f"[Error in _add_memory_if_unique]: {e}")
             return False
 
-    # --- MODIFIED ---
     def add_event_memory(self, fact: str, importance: int = 5, interlocutor: str = "System"):
-        """
-        为记忆添加 'interlocutor' (对话者) 元数据。
-        'System' 表示一般性事实, 'Player' 表示玩家, 其他 soul_id 表示NPC。
-        """
         metadata = {
             "importance": importance, 
             "type": "event",
-            "interlocutor": interlocutor  # <-- 新增的元数据
+            "interlocutor": interlocutor 
         }
         self._add_memory_if_unique(
             collection=self.event_memory, 
@@ -107,7 +102,6 @@ class AI_Soul:
         )
 
     def add_reflection_memory(self, reflection: str, importance: int = 3):
-        # 反思没有 interlocutor，因为它们是内部的
         metadata = {"importance": importance, "type": "reflection"}
         self._add_memory_if_unique(
             collection=self.reflection_memory, 
@@ -117,19 +111,15 @@ class AI_Soul:
         )
 
 
-    # --- MODIFIED ---
     # 支持相关性过滤 和 按对话者过滤
     def retrieve_memories(self, query: str, n_results: int = 2, filter_by_interlocutors: Optional[List[str]] = None) -> list:
         if not query:
             query = "general thoughts" 
             
-        # 1. 构建元数据过滤器
-        # 总是检索 "System" (通用事实)
         interlocutor_list = ["System"]
         if filter_by_interlocutors:
             interlocutor_list.extend(filter_by_interlocutors)
             
-        # 过滤器: (interlocutor IN ["System", "Player", "Peer_ID", ...])
         event_where_filter = {
             "interlocutor": {
                 "$in": interlocutor_list
@@ -142,7 +132,7 @@ class AI_Soul:
             events_results = self.event_memory.query(
                 query_texts=[query], 
                 n_results=n_results, 
-                where=event_where_filter, # <--- 应用过滤器
+                where=event_where_filter, 
                 include=["documents", "distances"]
             )
             
@@ -246,13 +236,12 @@ class AI_Soul:
         print(f"[V8.1 Favorability]: {self.soul_id} 对 {peer_id} 的好感度变为 {self.favorability_peers[peer_id]} (变化: {change})")
         return change
 
-    # --- MODIFIED ---
     def _generate_core_response(self, query_for_rag: str, full_llm_prompt_template: str, filter_interlocutors: Optional[List[str]] = None) -> (str, str, list):
         
-        # 检索记忆 (传入过滤器)
+        # 检索记忆
         relevant_memories = self.retrieve_memories(
             query_for_rag, 
-            filter_by_interlocutors=filter_interlocutors # <--- 传递过滤器
+            filter_by_interlocutors=filter_interlocutors 
         ) 
         memories_str = "\n".join(relevant_memories) if relevant_memories else "无"
         
@@ -287,7 +276,6 @@ class AI_Soul:
             return "...", f"SYSTEM ERROR: {e}", relevant_memories
 
 
-    # --- MODIFIED ---
     def generate_response_to_player(self, query: str):
         
         prompt_template = f"""
@@ -308,12 +296,11 @@ User: "{query}"
         monologue, spoken_response, memories = self._generate_core_response(
             query_for_rag=query, 
             full_llm_prompt_template=prompt_template,
-            filter_interlocutors=["Player"]  # <--- 告诉 RAG 只检索和玩家相关的
+            filter_interlocutors=["Player"]  # 告诉 RAG 只检索和玩家相关的
         )
             
-        # [新增] 将与玩家的互动本身记录为“事件”
         interaction_fact = f"玩家对我说: '{query}', 我回应: '{spoken_response}'"
-        self.add_event_memory(interaction_fact, importance=4, interlocutor="Player") # <--- 明确指定 interlocutor
+        self.add_event_memory(interaction_fact, importance=4, interlocutor="Player") 
 
         # 评估对玩家的好感度
         favor_change = self._get_favorability_change(f"玩家对你说了: '{query}'")
@@ -322,12 +309,11 @@ User: "{query}"
         
         return monologue, spoken_response, memories, favor_change
         
-    # --- MODIFIED ---
     def generate_system_response(self, query_for_rag: str, full_llm_prompt_template: str, filter_interlocutors: Optional[List[str]] = None) -> (str, str, list):
         monologue, spoken_response, memories = self._generate_core_response(
             query_for_rag=query_for_rag, 
             full_llm_prompt_template=full_llm_prompt_template,
-            filter_interlocutors=filter_interlocutors # <--- 传递 C2C/Banter 过滤器
+            filter_interlocutors=filter_interlocutors
         )
         return monologue, spoken_response, memories
 
@@ -367,7 +353,6 @@ User: "{query}"
         return image_prompt
 
 
-# --- MODIFIED ---
 def trigger_soul_banter(
     bystander_soul: AI_Soul, 
     active_soul_id: str, 
@@ -376,10 +361,8 @@ def trigger_soul_banter(
 ) -> str:
     print(f"[Banter System]: 触发 {bystander_soul.soul_id} 的评论...")
     
-    # 1. 定义用于RAG的查询
     query_for_rag = f"对 {active_soul_id} 的看法, 以及关于 '{user_prompt}' 的对话"
     
-    # 2. 定义Prompt模板 (包含 {memories} 和 {state})
     banter_prompt_template = f"""
 [你的核心人设]: {bystander_soul.base_persona}
 [你的当前内部状态]: {{state}}
@@ -415,7 +398,6 @@ def trigger_soul_banter(
     return ""
 
 
-# --- MODIFIED ---
 def trigger_soul_c2c_dialogue(soul_a: AI_Soul, soul_b: AI_Soul):
     print(f"[C2C System]: {soul_a.soul_id} 决定是否对 {soul_b.soul_id} 发起对话。")
     
@@ -487,8 +469,8 @@ def trigger_soul_c2c_dialogue(soul_a: AI_Soul, soul_b: AI_Soul):
     change_b = soul_b.update_peer_favorability(soul_a.soul_id, interaction_b_to_a)
     
     # 存储记忆时，明确指定对话者
-    soul_a.add_event_memory(interaction_a_to_b, importance=5, interlocutor=soul_b.soul_id) # <--- A 存储 B
-    soul_b.add_event_memory(interaction_b_to_a, importance=5, interlocutor=soul_a.soul_id) # <--- B 存储 A
+    soul_a.add_event_memory(interaction_a_to_b, importance=5, interlocutor=soul_b.soul_id)
+    soul_b.add_event_memory(interaction_b_to_a, importance=5, interlocutor=soul_a.soul_id)
     
     print(f"[C2C System] Log: {soul_a.soul_id} -> {soul_b.soul_id}: {line_a}")
     print(f"[C2C System] Log: {soul_b.soul_id} (回复): {line_b}")
