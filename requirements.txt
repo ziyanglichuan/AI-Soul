@@ -1,0 +1,13 @@
+# --- AI & LLM Core ---
+ollama
+chromadb
+
+# --- AIGC Image Generation ---
+torch
+transformers
+diffusers
+accelerate
+Pillow
+
+# --- Web App Demo ---
+streamlit
